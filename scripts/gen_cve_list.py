@@ -50,10 +50,14 @@ FILE_OWNERS = {
     'python/lldpwatch_frames.py': 'LLDP Watch',
     'python/lldpwatch_conformance.py': 'LLDP Watch',
     'python/lldpwatch_scapy_xcheck.py': 'LLDP Watch',
+    'python/cfmwatch.py': 'CFM Watch',
     'actions/ble_pentest.py': 'BLE Pentest (active)',
 }
 FILE_PREFIX_OWNERS = {'python/dns_doctor_passive/': 'DNS Watch',
-                      'python/modbuswatch/': 'Modbus Watch'}
+                      'python/modbuswatch/': 'Modbus Watch',
+                      'python/oamwatch/': 'OAM Watch',
+                      'python/oamwatch_tests/': 'OAM Watch',
+                      'python/cfmwatch_tests/': 'CFM Watch'}
 # Files that only mention CVEs already owned elsewhere (labels, help text).
 MENTION_ONLY = {'webapp_modern.py', 'watchtower.py', 'web/scripts/ragnar_modern.js',
                 'web/index_modern.html'}
@@ -95,6 +99,9 @@ ND_PREFIXES = [
     ('_SMTP', 'SMTP Watch'), ('_smtp', 'SMTP Watch'), ('do_smtp', 'SMTP Watch'),
     ('_MODBUS', 'Modbus Watch'), ('_modbus', 'Modbus Watch'), ('do_modbus', 'Modbus Watch'),
     ('_LLDP', 'LLDP Watch'), ('_lldp', 'LLDP Watch'), ('do_lldp', 'LLDP Watch'),
+    ('_OAM', 'OAM Watch'), ('_oam', 'OAM Watch'), ('do_oam', 'OAM Watch'),
+    # before Cisco Guard's ('_CFM', ...) VXLAN-NGOAM prefix, which would swallow these
+    ('_CFMW', 'CFM Watch'), ('_cfmw', 'CFM Watch'), ('do_cfm', 'CFM Watch'),
     ('_RELAY', 'Relay / Coercion Watch'), ('_relay', 'Relay / Coercion Watch'),
     ('_parse_relay', 'Relay / Coercion Watch'), ('do_relay', 'Relay / Coercion Watch'),
     ('_ND_DNSSL', 'ICMP Watch'), ('_ISIS', 'IS-IS Watch'), ('_CFM', 'Cisco Guard'),
@@ -105,11 +112,17 @@ ND_PREFIXES = [
 # CVEs named inside a detector's finding text for comparison only — e.g. the
 # OpenSSH scp bug named as the "twin" of the netkit rcp CVE Telnet Watch detects,
 # and the Ripple20 IPv6 bug APC Guard names only to state it does not apply to APC.
-CONTEXT_CVES = {'CVE-2019-6111', 'CVE-2020-11897'}
+CONTEXT_CVES = {'CVE-2019-6111', 'CVE-2020-11897',
+                # cfmwatch: Huawei Y.1731 DoS (trigger never published, screening row only)
+                # and a Cisco IOS XR CFM bug rejected below the bar; both only named.
+                'CVE-2014-3223', 'CVE-2023-20233'}
 # Deliberately wrong IDs inside a vendored module's own mutation-test fixtures
 # (ptpwatch v4's README bite list swaps CVE-2024-42861 for this). Never a detection.
 IGNORED_CVES = {'CVE-2024-99999',
-                'CVE-9999-0001'}   # lldpwatch conformance: operator extra_families fixture
+                'CVE-9999-0001',   # lldpwatch conformance: operator extra_families fixture
+                # lldpwatch_conformance: the four SB220 4.3 siblings, asserted NOT screened
+                'CVE-2021-34775', 'CVE-2021-34776', 'CVE-2021-34777', 'CVE-2021-34778',
+                'CVE-2019-14810'}  # oamwatch xcheck comment: Arista LDP, named only as a not-this-protocol example
 # Per-CVE owner overrides where a shared helper names another vendor's CVE.
 CVE_OWNER_OVERRIDE = {'CVE-2021-0254': 'Juniper Guard'}
 # Owners (or owner+CVE) whose mention is context/reference, not a detection.
@@ -155,6 +168,16 @@ NAMES = {
     'CVE-2019-5608': 'Fragmented IGMP/MLD membership', 'CVE-2020-0796': 'SMBGhost',
     'CVE-2020-1472': 'Zerologon', 'CVE-2020-3110': 'CDPwn', 'CVE-2020-3111': 'CDPwn',
     'CVE-2020-3118': 'CDPwn', 'CVE-2020-3119': 'CDPwn', 'CVE-2020-3120': 'CDPwn',
+    'CVE-2020-3505': 'LCDPwn (Video Surveillance 8000)', 'CVE-2020-3506': 'LCDPwn (Video Surveillance 8000)',
+    'CVE-2020-3507': 'LCDPwn (Video Surveillance 8000)', 'CVE-2020-3543': 'LCDPwn (Video Surveillance 8000)',
+    'CVE-2020-3544': 'LCDPwn (Video Surveillance 8000)', 'CVE-2021-1131': 'LCDPwn (Video Surveillance 8000)',
+    'CVE-2021-1521': 'LCDPwn (Video Surveillance 8000)', 'CVE-2021-1563': 'LCDPwn (Video Surveillance 7000)',
+    'CVE-2021-1564': 'LCDPwn (Video Surveillance 7000)', 'CVE-2021-1379': 'LCDPwn (IP Phone 68xx/78xx/88xx)',
+    'CVE-2022-20968': 'Cisco IP Phone 7800/8800 CDP stack overflow', 'CVE-2022-20824': 'Cisco NX-OS/FXOS CDP RCE',
+    'CVE-2022-20688': 'Cisco ATA 190 CDP OOB read', 'CVE-2022-20689': 'Cisco ATA 190 CDP length validation',
+    'CVE-2022-20690': 'Cisco ATA 190 CDP length validation', 'CVE-2022-20691': 'Cisco ATA 190 CDP resource exhaustion',
+    'CVE-2022-20766': 'Cisco ATA 190 CDP OOB read', 'CVE-2022-20804': 'Cisco Unified CM CDP DoS',
+    'CVE-2021-26111': 'FortiSwitch lldpmedd memory exhaustion', 'CVE-2023-41910': 'lldpd cdp_decode OOB read',
     'CVE-2020-8616': 'NXNSAttack', 'CVE-2020-11868': 'NTP zero-origin sync block',
     'CVE-2020-12243': 'OpenLDAP nested-filter DoS', 'CVE-2020-16898': 'Bad Neighbor',
     'CVE-2020-16899': 'RA DNSSL DoS', 'CVE-2020-25583': 'RA DNSSL DoS (rtsold)',

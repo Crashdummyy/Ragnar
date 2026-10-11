@@ -2,6 +2,81 @@
 
 ## Releases
 
+### 2026-10-11
+
+#### [#942](https://github.com/PierreGode/Ragnar/pull/942) — feat(net): CDP Watch v4 — LCDPwn expansion (+20 CVEs, cross-vendor screening, address-record attack shapes)
+*branch `feature/cdp-watch-v4`*
+
+- **Ported the Solarflere `cdpwatch` v4 (LCDPwn) additions into the in-app `do_cdp_watch`.** CDP is already an in-app watcher (byte-level TLV parser over the `tcpdump -xx` capture path), so no standalone module was vendored — the new detection logic was folded into the existing `_cdp_cdpwn_scan` / `_cdp_parse_frame`.
+- **CDP-plane CVE coverage 5 → 25.** Version-screening grew from five families to **nine** (`CDP-020`..`024`, `CDP-027`..`030`; the config-driven `CDP-025`/`026` version-floor hints aren't part of the passive in-app watcher): the original Armis CDPwn set widened by the **LCDPwn** successor — the Video Surveillance 7000/8000 camera cluster, IP Phone 68xx/78xx/88xx — and its cross-vendor arm: **FortiSwitch** (`CDP-027`, CVE-2021-26111), **lldpd** (`CDP-028`, CVE-2023-41910, the 9.8 `cdp_decode` OOB read), **Cisco ATA 190/191/192** (`CDP-029`, CVE-2022-20688…20766) and **Unified CM** (`CDP-030`, CVE-2022-20804). An ATA is guarded off the IP-Phone family by a negative lookahead; plain IOS/IOS-XE stays excluded per Cisco's advisory.
+- **Two new byte-level attack shapes** the outer-TLV length check cannot see: per-address-record **protocol_type/length mismatch** (`CDP-053`) and **allocation/copy size discrepancy** (`CDP-054`) — the parsing class behind the lldpd OOB read. Both escalate the verdict to `cdpwn`.
+- **CVE index 309 → 328 named, 266 → 285 detected** (+19 each; CVE-2021-26111 was already named by LLDP-048). `gen_cve_list.py` labels the new IDs (CDPwn / LCDPwn / vendor). CREDITS and README synced; a CDP Watch coverage bullet added.
+- **Self-test:** the `cdp` suite grows to **29 scenarios** — the four new screening families, the two address-record shapes, an ATA-not-IP-Phone false-positive guard and a well-formed-record silence check — all passing, plus the scapy capture→parse end-to-end leg. Detector Self-Test unchanged.
+- **Validated live:** crafted FortiSwitch/lldpd screening frames and a malformed Addresses record replayed with `tcpreplay` over a sealed-netns veth fire through the real `tcpdump` capture path — `CDP-027`/`028`/`053`/`054` all detected, verdict `cdpwn`. Real Cisco hardware is not yet validated.
+- **Docs:** [nettools.md › CDP Watch](nettools.md#cdp-watch) (cdpwn/screening description, 11 families, 25 CVEs), [CREDITS.md](CREDITS.md). The L2 visibility-matrix tile is unchanged (still an image; no updated source supplied with this drop).
+
+#### [#941](https://github.com/PierreGode/Ragnar/pull/941) — feat(net): LLDP Watch v2 — +10 CVEs (FortiSwitchAX RCE, Cisco SB220/RV, TRENDnet, QNAP)
+*branch `feature/lldp-watch-v2`*
+
+- **Re-vendored the Solarflere `lldpwatch` engine to v2** (`python/lldpwatch.py`, `lldpwatch_frames.py`, `lldpwatch_conformance.py`; the scapy cross-check is byte-identical and unchanged). The in-app `do_lldp_watch` adapter is unchanged — the engine API (`Config`, `Engine.handle_frame`) is stable.
+- **30 finding codes now (was 26)** and **30 LLDP parser CVEs across thirteen families (was 20 / eight).** Four new screening codes `LLDP-031`..`034` add the **TRENDnet**, **QNAP QSS**, **Cisco SB220/B220** and **Cisco RV** families. The new structural reach is **CVE-2026-22627**, the FortiSwitchAX oversized-OUI TLV overflow — unauthenticated adjacent **RCE** (8.8) — caught both structurally and as a FortiSwitchAX screen. Other new CVEs: CVE-2021-34779/34780, CVE-2021-1309/1251/1308, CVE-2021-33315/33316/33317, CVE-2021-28801.
+- **CVE index 299 → 309 named, 256 → 266 detected.** `gen_cve_list.py` ignores the four SB220 4.3 siblings (CVE-2021-34775..34778) that the module's conformance asserts are *not* screened. CREDITS and README synced; the LLDP bullet lists the new families and the 2021 cluster.
+- **Self-test:** the `lldp` suite grows to **41 scenarios** (the four new screening builders are covered by the existing generic loops), and runs the module's **2117-check conformance** and **285-check scapy cross-check** out of process. Detector Self-Test stays at 52 suites.
+- **Validated live:** malformed, flood and vendor frames replayed with `tcpreplay` over a sealed-netns veth fire through the real tcpdump path, the four new `LLDP-031`..`034` families included, and CVE-2026-22627 is detected. Real switch hardware is not yet validated.
+- **Docs:** [nettools.md › LLDP Watch](nettools.md#lldp-watch) (families table, code count, screening range, validation), [CREDITS.md](CREDITS.md). The L2 visibility-matrix tile still reads "26 codes · 20 CVEs" — the image was not re-cut (no updated source supplied).
+
+### 2026-10-10
+
+#### [#940](https://github.com/PierreGode/Ragnar/pull/940) — fix(ui): L2 layer button count 14 → 16 (OAM + CFM Watch)
+*branch `fix/l2-layer-count`*
+
+- The **L2 Data Link** button in Network → Diagnostics still read **14**. OAM Watch (#938) and CFM Watch (#938) both added a card to that layer without bumping the count. The badge now reads **16**, matching the L2 cards on the layer. No other layer counts changed.
+
+#### [#939](https://github.com/PierreGode/Ragnar/pull/939) — Ragnar OS: move the image build pipeline to a private repo
+*branch `feature/ragnar-os`*
+
+- **Why:** to keep the official branded *Ragnar OS* image hard to clone and rebrand. The pi-gen recipe is now maintained in a **separate private repository** (`PierreGode/RagnarOS`) instead of in this public app repo.
+- **Removed from this repo:** the `os-image/` tree (`build.sh`, `config`, `stage-ragnar/`, `os-list.json`, `ragnar.conf.example`) and `.github/workflows/build-os-image.yml`. The private pipeline clones this public repo at build time and runs its installer, so nothing about the app is hidden.
+- **The app stays fully open.** `install_ragnar.sh` still installs Ragnar on any Raspberry Pi, and the `--image-build` / `--unattended` installer modes the pipeline relies on remain here and documented (`install_ragnar.sh --help`).
+- **Downloads stay public.** On an `os-v*` tag the private pipeline publishes `RagnarOS-*.img.xz` + `.sha256` as a **Release on this repo**, so end users still download from the usual [Releases](https://github.com/PierreGode/Ragnar/releases) page. (This needs a `RAGNAR_RELEASE_TOKEN` secret, a fine-grained PAT with Contents:write on this repo, configured in the private repo.)
+- **Docs:** [ragnar-os.md](ragnar-os.md) — the "Building the image yourself" section is now "Where the image comes from", and the dead `os-image/` path references are removed. End-user flashing/first-boot/`ragnar.conf` instructions are unchanged.
+
+#### [#938](https://github.com/PierreGode/Ragnar/pull/938) — feat(net): OAM Watch + CFM Watch — passive carrier-Ethernet OAM monitors (802.3ah Link OAM, 802.1ag CFM / Y.1731)
+*branch `feature/oam-watch`*
+
+- **New in-app watcher** (Diagnostics → L2, next to LACP Watch): the vendored Solarflere `oamwatch` package (`python/oamwatch/`, tests in `python/oamwatch_tests/`) behind `do_oam_watch`. Passive and detection-only. tcpdump captures to a pcap (promiscuous, inbound only, slow-protocols `0x8809` subtype 3) and a pure-Python parser reads it.
+- **38 codes, no CVEs** (none exist for Link OAM). Highlights: **Loopback Control enable** (one forged frame blackholes the link, OAM-060), confirmed remote-loopback state, **flapping** Dying Gasp / Critical Event / Link Fault, discovery restart, peer substitution, capability escalation, cleartext Clause 30 MIB reads, event replay, a second speaker on a point-to-point link, the 10 PDU/s cap, and 18 structural OAMPDU checks. Posture capability bits are notes.
+- **Session state persists per interface across scans**, so a 300 s flap or a peer swapped between scans is caught. **Reset** (`POST /api/net/oam-reset`) forgets it after a legitimate change.
+- **Verdicts** use existing tokens: `no-traffic`/`clean` < `observed` < `exposure` < `suspicious` < `attack`. A single failure flag is only `suspicious`, since it is often a real power loss. Wired into the Net Integrity rotation (`oam`), Watchtower (`oam_watch`, MEDIUM and above), routes, and the CLI `oam-watch [--pcap]`.
+- **Self-test:** new `oam` suite with 19 scenarios, plus the module's 297-check conformance and 163-check Wireshark cross-check run out of process. **Validated live:** all 38 codes fire through the real capture path, replayed with tcpreplay over a sealed-netns veth.
+- CVE index unchanged at 295 / 254. `gen_cve_list.py` registers the OAM owners/prefixes and ignores the "not this protocol" mention CVE-2019-14810 in the cross-check comments.
+- **Docs:** [nettools.md › OAM Watch](nettools.md#oam-watch), [watchtower.md](watchtower.md), [CREDITS.md](CREDITS.md) (new non-CVE coverage bullet).
+- **CFM Watch, a second new in-app watcher** (Diagnostics → L2, next to OAM Watch). It wraps the vendored Solarflere `cfmwatch` module (`python/cfmwatch.py`, unmodified; fixtures and tiers in `python/cfmwatch_tests/`) behind `do_cfm_watch`. It is a passive IEEE 802.1ag CFM / ITU-T Y.1731 service-OAM monitor. tcpdump captures EtherType `0x8902`, untagged, 802.1Q or QinQ, promiscuous and inbound only, to a pcap.
+  - **54 codes.** Highlights: forged **APS** (Forced Switch, **Lockout of protection**, uncorroborated **Signal Fail**, group takeover, churn), forged AIS / LCK, CCM forgery (MAID mismatch, duplicate or **moved MEP**, unexpected MEP), MD-level hierarchy violations, an optional MD ceiling, LBM floods, linktrace TTL sweeps, MIP disclosure, and 10 structural checks.
+  - **CVEs:** CVE-2020-1639 (Junos cfmd crash shape, CFM-140) and CVE-2025-52961 (Junos Evolved cfmd load pattern, CFM-122/141, low confidence) are detected. CVE-2014-3223 and CVE-2023-20233 are named as context only. The CVE index moves to **299 named / 256 detected**, and CREDITS and README are synced.
+  - **Engine state persists per interface across scans**, and each scan reports its own delta. **Reset** is `POST /api/net/cfm-reset`.
+  - **Verdicts:** `no-traffic` < `clean` (inventory only) < `observed` (RDI / AIS / LBM events) < `suspicious` < `attack`.
+  - **Wiring:** Net Integrity rotation `cfm`, Watchtower `cfm_watch` (MEDIUM and above), routes, and CLI `cfm-watch [--md-ceiling] [--pcap]`. `gen_cve_list.py` registers the CFM owners, with the `_CFMW` prefix ahead of Cisco Guard's `_CFM`.
+  - **Self-test:** new `cfm` suite with 18 scenarios. All 9 fixtures match their manifests exactly through the adapter, and the module's 54-check conformance and 2155-comparison Wireshark + scapy cross-check run out of process. The Detector Self-Test is now **52 suites**.
+  - **Validated live:** 54/54 codes fire through the real tcpdump path, replayed with tcpreplay over a sealed-netns veth, VLAN-tagged frames included.
+  - **Docs:** [nettools.md › CFM Watch](nettools.md#cfm-watch), [watchtower.md](watchtower.md), [CREDITS.md](CREDITS.md).
+- **Visibility matrix** updated with the OAM Watch and CFM Watch tiles in L2.
+
+
+#### [#935](https://github.com/PierreGode/Ragnar/pull/935) — Ragnar OS: preinstall Tailscale + AirSnitch, and fix kiosk on Lite
+*branch `feature/ragnar-os`*
+
+- **Preinstall Tailscale + AirSnitch in the image.** The image stage (`os-image/stage-ragnar/.../01-run-chroot.sh`) now bakes two tools the installer otherwise leaves on-demand, right after `install_ragnar.sh --image-build`:
+  - **Tailscale client** via `scripts/setup_mesh.sh install` — binary only, never joins during imaging (`tailscaled` is enabled; the start is a chroot no-op, so it comes up on first real boot). The web UI Mesh tab or a `/boot/firmware/ragnar-mesh.conf` can now join with no download.
+  - **AirSnitch** via `AirSnitchRunner(...).install()` — clones `vanhoefm/airsnitch` into `tools/airsnitch` and builds its hostapd, so the Pentest tab's AirSnitch works offline on a fresh flash.
+  - Both steps are **non-fatal** — a clone/build hiccup logs a warning and the image still builds (the tool stays a one-click retry on-device). `tools/` is chowned to `ragnar`.
+- **Fix kiosk crash-looping on Ragnar OS** (`ragnar-kiosk.service` active but Chromium/X never start, NRestarts climbing). Root cause: a non-root Xorg must open the GPU, the VT and input devices itself, but the Lite service user (`ragnar`) was only in `spi gpio i2c sudo netdev` — never **video/render/input/tty** — so Xorg died with *"no screens found"* and crash-looped. A desktop Pi OS `pi` user has these by default; a Lite image does not.
+  - `install_kiosk.sh` now adds the kiosk user to `video,render,input,tty` (only the groups that exist, since `usermod` is all-or-nothing), and if the kiosk is already enabled it `reset-failed` + restarts so the membership takes effect without a reboot.
+  - `kiosk_doctor.sh` now reports the kiosk user's groups and flags any missing graphics/input group — so this is self-diagnosing next time.
+- **Raspberry Pi Connect sign-in from the web UI.** The Mesh tab's Pi Connect card now takes an **auth key** (generated at connect.raspberrypi.com) and signs in non-interactively via `rpi-connect signin -auth-key` (rpi-connect 2.12+) — no browser device-flow, no terminal. The backend enables `loginctl enable-linger` + the per-user service for the right login user first, so it works on a headless box; the key is never stored or logged. New `mesh_manager.pi_connect_signin()`/`pi_connect_signout()` + routes `/api/mesh/pi-connect/{signin,signout}`. (Replaces the old "sign in from a terminal" instructions — the earlier "can't be automated" note predated the `-auth-key` flag.)
+- **Kiosk + Tailscale HTTPS publishing can now run together.** They used to be mutually exclusive: `tailscale serve` proxies every tailnet request from `127.0.0.1`, and the kiosk bypass trusted *any* loopback request — so the pair would have exposed the full UI, unauthenticated, to the tailnet, and publishing was refused with kiosk on. The bypass is now scoped to a **per-box secret token** the local kiosk holds (`data/kiosk_token`, injected into the kiosk URL → set as a cookie); a tailnet visitor via `serve` reaches loopback too but can't hold the token, so they still must log in. `install_kiosk.sh` generates the token, the wrapper passes it, and the publish endpoint no longer blocks on `kiosk_enabled`.
+- Docs: [Ragnar OS image](ragnar-os.md), [Kiosk Mode — Troubleshooting](kiosk.md), [Mesh](mesh.md).
+
 ### 2026-10-09
 
 #### [#933](https://github.com/PierreGode/Ragnar/pull/933) — feat(ble): BLE Watch "Trust current" + "Clear list" controls
